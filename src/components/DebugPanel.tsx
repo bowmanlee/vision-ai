@@ -52,6 +52,9 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({ data }) => {
     );
   }
 
+  const doomMeta = data.doomResult?.metadata as { activeDurationMs?: number } | undefined;
+  const expr = data.expressionSmoothed;
+
   return (
     <div className="w-full max-w-4xl mx-auto mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
       <div className="bg-white rounded-lg shadow p-3">
@@ -62,6 +65,20 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({ data }) => {
           <div>Avg EAR: {fmt(data.face?.avgEAR)}</div>
           <div>Head tilt: {fmt(data.face?.headTiltDeg)}°</div>
           <div>Nose Y: {fmt(data.face?.noseY)}</div>
+          <div>Visibility: {fmt(data.face?.visibilityScore)}</div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow p-3">
+        <h3 className="font-semibold text-slate-700 mb-2">Expression</h3>
+        <div className="text-xs text-slate-600 space-y-1">
+          <div className="font-bold text-indigo-700">
+            {expr ? `${expr.expression} (${Math.round(expr.confidence * 100)}%)` : '—'}
+          </div>
+          <div>Smile: {fmt(data.expression?.rawScores?.mouthSmileLeft)} / {fmt(data.expression?.rawScores?.mouthSmileRight)}</div>
+          <div>Frown: {fmt(data.expression?.rawScores?.mouthFrownLeft)} / {fmt(data.expression?.rawScores?.mouthFrownRight)}</div>
+          <div>Brow up: {fmt(data.expression?.rawScores?.browInnerUp)}</div>
+          <div>Jaw open: {fmt(data.expression?.rawScores?.jawOpen)}</div>
         </div>
       </div>
 
@@ -72,6 +89,7 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({ data }) => {
           <div>Shoulder tilt: {fmt(data.pose?.shoulderTiltDeg)}°</div>
           <div>Torso lean: {fmt(data.pose?.torsoLeanDeg)}°</div>
           <div>Shoulder Y: {fmt(data.pose?.shoulderY)}</div>
+          <div>Visibility: {fmt(data.pose?.visibilityScore)}</div>
         </div>
       </div>
 
@@ -82,6 +100,7 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({ data }) => {
           <div>Avg Y: {fmt(data.hand?.avgHandY)}</div>
           <div>Lower half: {data.hand?.handsInLowerHalf ? 'Yes' : 'No'}</div>
           <div>Pinch: {fmt(data.hand?.thumbIndexPinch)}</div>
+          <div>Visibility: {fmt(data.hand?.visibilityScore)}</div>
         </div>
       </div>
 
@@ -91,7 +110,7 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({ data }) => {
         confidence={data.doomResult?.confidence ?? 0}
         severity={data.doomResult?.severity ?? 'low'}
       >
-        Duration: {fmt((data.doomResult?.metadata as { durationMs?: number })?.durationMs)}ms
+        Active duration: {fmt(doomMeta?.activeDurationMs)}ms
       </DetectionCard>
 
       <DetectionCard

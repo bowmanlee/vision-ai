@@ -7,6 +7,9 @@ interface PostureMeta {
   torsoLeanDeg: number;
 }
 
+/** Neck flexion threshold: below this is considered poor posture. */
+const NECK_FLEXION_THRESHOLD = 150;
+
 /**
  * Detects poor posture (slouching) via neck flexion and shoulder tilt.
  * Invariant: if landmarks are missing, confidence drops to 0 (no hidden fallback).
@@ -22,7 +25,9 @@ export class PostureDetector extends BaseDetector<PostureMeta> {
     this.lastPose = pose;
   }
 
-  protected evaluate() {
+  protected evaluate(now: number) {
+    void now; // base class contract requires timestamp; posture is frame-invariant
+
     if (!this.lastPose) {
       return {
         rawConfidence: 0,
@@ -35,7 +40,9 @@ export class PostureDetector extends BaseDetector<PostureMeta> {
 
     // Neck flexion: smaller angle = more forward head (bad).
     // Upright ~170, slouching < 150.
-    const neckScore = neckFlexionDeg < 150 ? (150 - neckFlexionDeg) / 60 : 0;
+    const neckScore = neckFlexionDeg < NECK_FLEXION_THRESHOLD
+      ? (NECK_FLEXION_THRESHOLD - neckFlexionDeg) / 60
+      : 0;
 
     // Shoulder tilt: > 5 deg is suspicious.
     const tiltScore = Math.min(shoulderTiltDeg / 15, 1);

@@ -28,6 +28,19 @@ export interface NormalizedLandmark {
 /** Severity levels for detections and alerts. */
 export type Severity = 'low' | 'medium' | 'high';
 
+/** Ordered severity list for comparison. Lower index = lower severity. */
+export const SEVERITY_ORDER: readonly Severity[] = ['low', 'medium', 'high'] as const;
+
+/** Compare two severities. Returns >0 if a is more severe, <0 if b is more severe, 0 if equal. */
+export function compareSeverity(a: Severity, b: Severity): number {
+  return SEVERITY_ORDER.indexOf(a) - SEVERITY_ORDER.indexOf(b);
+}
+
+/** True if `candidate` meets or exceeds `required` severity. */
+export function meetsSeverity(candidate: Severity, required: Severity): boolean {
+  return compareSeverity(candidate, required) >= 0;
+}
+
 /** Concrete detection emitted by a specialized detector. */
 export interface DetectionResult<TMeta = unknown> {
   /** Whether the target condition is presently detected. */

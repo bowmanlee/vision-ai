@@ -1,4 +1,5 @@
 import type { UserActivity, Severity } from '../types';
+import { meetsSeverity } from '../types';
 
 /**
  * AlertPolicy defines per-activity alerting rules.
@@ -46,11 +47,8 @@ export class AlertPolicy {
     const rule = this.rules.get(activity);
     if (!rule) return { should: false, message: '' };
 
-    const severityOrder = ['low', 'medium', 'high'] as const;
-    const meetsSeverity = severityOrder.indexOf(severity) >= severityOrder.indexOf(rule.minSeverity);
-
     return {
-      should: meetsSeverity,
+      should: meetsSeverity(severity, rule.minSeverity),
       message: rule.message,
     };
   }

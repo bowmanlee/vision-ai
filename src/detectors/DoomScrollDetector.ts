@@ -4,7 +4,8 @@ import type { FaceMetrics, PoseMetrics, HandMetrics } from '../features';
 interface DoomScrollMeta {
   headDownConfidence: number;
   handsHoldingConfidence: number;
-  durationMs: number;
+  /** Duration in ms that the condition has been continuously active (post-trigger). */
+  activeDurationMs: number;
 }
 
 /**
@@ -17,7 +18,7 @@ export class DoomScrollDetector extends BaseDetector<DoomScrollMeta> {
   private lastFace: FaceMetrics | null = null;
   private lastPose: PoseMetrics | null = null;
   private lastHand: HandMetrics | null = null;
-  private startTime: number | null = null;
+  private triggerTime: number | null = null;
 
   constructor(config?: Partial<import('../types').DetectorConfig>) {
     super('doom-scroll', config);
@@ -49,17 +50,17 @@ export class DoomScrollDetector extends BaseDetector<DoomScrollMeta> {
 
     const rawConfidence = (headDownConfidence + handsHoldingConfidence) / 2;
 
-    if (rawConfidence >= this.config.confidenceThreshold) {
-      if (this.startTime == null) this.startTime = now;
+    // Track how long we've been actively detected for severity escalation.
+    if (this.lastDetected) {
+      if (this.triggerTime == null) this.triggerTime = now;
     } else {
-      this.startTime = null;
+      this.triggerTime = null;
     }
-
-    const durationMs = this.startTime != null ? now - this.startTime : 0;
+    const activeDurationMs = this.triggerTime != null ? now - this.triggerTime : 0;
 
     let severity: 'low' | 'medium' | 'high' = 'low';
-    if (durationMs > 10000) severity = 'high';
-    else if (durationMs > 5000) severity = 'medium';
+    if (activeDurationMs > 10000) severity = 'high';
+    else if (activeDurationMs > 5000) severity = 'medium';
 
     return {
       rawConfidence,
@@ -67,13 +68,13 @@ export class DoomScrollDetector extends BaseDetector<DoomScrollMeta> {
       metadata: {
         headDownConfidence,
         handsHoldingConfidence,
-        durationMs,
+        activeDurationMs,
       },
     };
   }
 
   override reset(): void {
     super.reset();
-    this.startTime = null;
+    this.triggerTime = null;
   }
 }

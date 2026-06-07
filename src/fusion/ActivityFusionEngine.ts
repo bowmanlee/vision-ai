@@ -1,4 +1,5 @@
 import type { DetectionResult, UserActivity, ActivitySnapshot } from '../types';
+import { compareSeverity } from '../types';
 
 /**
  * ActivityFusionEngine combines multiple detector outputs into a single
@@ -24,6 +25,16 @@ interface DetectorMapping {
   fatigue: DetectionResult<unknown> | null;
 }
 
+function maxSeverity(results: DetectionResult<unknown>[]): import('../types').Severity {
+  let best: import('../types').Severity = 'low';
+  for (const r of results) {
+    if (compareSeverity(r.severity, best) > 0) {
+      best = r.severity;
+    }
+  }
+  return best;
+}
+
 export class ActivityFusionEngine {
   private minHoldMs: number;
   private currentActivity: UserActivity = 'UNKNOWN';
@@ -36,22 +47,22 @@ export class ActivityFusionEngine {
   }
 
   fuse(now: number, inputs: DetectorMapping): ActivitySnapshot {
-    const candidates: { activity: UserActivity; confidence: number; detectors: string[] }[] = [];
+    const candidates: { activity: UserActivity; confidence: number; detectors: string[]; results: DetectionResult<unknown>[] }[] = [];
 
     if (inputs.fatigue && inputs.fatigue.detected) {
-      candidates.push({ activity: 'FATIGUED', confidence: inputs.fatigue.confidence, detectors: ['fatigue'] });
+      candidates.push({ activity: 'FATIGUED', confidence: inputs.fatigue.confidence, detectors: ['fatigue'], results: [inputs.fatigue] });
     }
     if (inputs.doomScroll && inputs.doomScroll.detected) {
-      candidates.push({ activity: 'DOOM_SCROLLING', confidence: inputs.doomScroll.confidence, detectors: ['doomScroll'] });
+      candidates.push({ activity: 'DOOM_SCROLLING', confidence: inputs.doomScroll.confidence, detectors: ['doomScroll'], results: [inputs.doomScroll] });
     }
     if (inputs.posture && inputs.posture.detected) {
-      candidates.push({ activity: 'SLOUCHING', confidence: inputs.posture.confidence, detectors: ['posture'] });
+      candidates.push({ activity: 'SLOUCHING', confidence: inputs.posture.confidence, detectors: ['posture'], results: [inputs.posture] });
     }
 
     // Default to FOCUSED if face is visible and no negative signals.
     const faceVisible = inputs.fatigue != null && inputs.fatigue.confidence > 0;
     if (candidates.length === 0 && faceVisible) {
-      candidates.push({ activity: 'FOCUSED', confidence: 0.7, detectors: ['default'] });
+      candidates.push({ activity: 'FOCUSED', confidence: 0.7, detectors: ['default'], results: [] });
     }
 
     // If nothing, unknown.
@@ -79,12 +90,14 @@ export class ActivityFusionEngine {
 
     // Hysteresis: if activity changed, enforce min hold time.
     if (best.activity !== this.currentActivity) {
-      if (now - this.activityStartTime < this.minHoldMs && this.currentActivity !== 'UNKNOWN') {
+      const elapsed = now - this.activityStartTime;
+      if (elapsed < this.minHoldMs && this.currentActivity !== 'UNKNOWN') {
         // Stick with current activity but decay confidence slightly.
         best = {
           activity: this.currentActivity,
           confidence: this.currentConfidence * 0.95,
           detectors: this.lastSnapshot?.contributingDetectors ?? [],
+          results: [],
         };
       } else {
         this.currentActivity = best.activity;
@@ -94,10 +107,14 @@ export class ActivityFusionEngine {
 
     this.currentConfidence = best.confidence;
 
+    const severity = best.results.length > 0
+      ? maxSeverity(best.results)
+      : 'low';
+
     const snapshot: ActivitySnapshot = {
       activity: best.activity,
       confidence: best.confidence,
-      severity: best.activity === 'FOCUSED' ? 'low' : (best.activity === 'UNKNOWN' ? 'low' : 'medium'),
+      severity,
       timestamp: now,
       contributingDetectors: best.detectors,
     };

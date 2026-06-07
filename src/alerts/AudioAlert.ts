@@ -3,17 +3,24 @@ import type { AlertChannel, AlertEvent } from '../types';
 /**
  * AudioAlert produces a short beep using the Web Audio API.
  * Gracefully degrades if AudioContext is unavailable.
+ * Handles browser autoplay policy by resuming suspended contexts.
  */
 
 export class AudioAlert implements AlertChannel {
   readonly name = 'audio';
   private ctx: AudioContext | null = null;
 
-  dispatch(_event: AlertEvent): void {
+  async dispatch(_event: AlertEvent): Promise<void> {
     try {
       if (!this.ctx) {
         this.ctx = new AudioContext();
       }
+
+      // Browsers suspend AudioContext until a user gesture.
+      if (this.ctx.state === 'suspended') {
+        await this.ctx.resume();
+      }
+
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
       osc.connect(gain);

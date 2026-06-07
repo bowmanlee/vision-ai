@@ -1,8 +1,10 @@
 import React from 'react';
 import type { ActivitySnapshot } from '../types';
+import type { DebugData } from '../hooks/useVisionSystem';
 
 interface StatusBarProps {
   snapshot: ActivitySnapshot | null;
+  debug: DebugData | null;
 }
 
 const ACTIVITY_COLORS: Record<string, string> = {
@@ -21,9 +23,13 @@ const ACTIVITY_LABELS: Record<string, string> = {
   UNKNOWN: 'Unknown',
 };
 
-export const StatusBar: React.FC<StatusBarProps> = ({ snapshot }) => {
+export const StatusBar: React.FC<StatusBarProps> = ({ snapshot, debug }) => {
   const activity = snapshot?.activity ?? 'UNKNOWN';
   const confidence = snapshot ? Math.round(snapshot.confidence * 100) : 0;
+  const expression = debug?.expressionSmoothed?.expression ?? '—';
+  const exprConfidence = debug?.expressionSmoothed
+    ? Math.round(debug.expressionSmoothed.confidence * 100)
+    : 0;
 
   return (
     <div className="flex items-center justify-between w-full max-w-4xl mx-auto mt-4 px-4 py-3 bg-white rounded-xl shadow">
@@ -31,9 +37,15 @@ export const StatusBar: React.FC<StatusBarProps> = ({ snapshot }) => {
         <div
           className={`w-4 h-4 rounded-full ${ACTIVITY_COLORS[activity] ?? 'bg-slate-500'}`}
         />
-        <span className="font-semibold text-slate-800">
-          {ACTIVITY_LABELS[activity] ?? activity}
-        </span>
+        <div>
+          <div className="font-semibold text-slate-800">
+            {ACTIVITY_LABELS[activity] ?? activity}
+          </div>
+          <div className="text-xs text-slate-400">
+            Expression: <span className="text-indigo-600 font-medium">{expression}</span>{' '}
+            {expression !== '—' && `(${exprConfidence}%)`}
+          </div>
+        </div>
       </div>
       <div className="text-sm text-slate-500">
         Confidence: <span className="font-mono font-medium">{confidence}%</span>

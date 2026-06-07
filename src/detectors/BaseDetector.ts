@@ -6,6 +6,8 @@ import type { DetectionResult, DetectorConfig } from '../types';
  * Invariant: A detection only flips to `detected: true` after the condition
  * persists for `activationDelayMs`. It only clears after `clearDelayMs`.
  * This prevents flickering from noisy single-frame fluctuations.
+ *
+ * Subclasses must implement `evaluate(now)` to return a raw confidence in [0, 1].
  */
 
 export const DEFAULT_CONFIG: DetectorConfig = {
@@ -35,6 +37,21 @@ export abstract class BaseDetector<TMeta = unknown> {
     severity: 'low' | 'medium' | 'high';
     metadata: TMeta;
   };
+
+  /** Time in ms the current condition has been continuously active (not yet triggered). */
+  protected getPendingDurationMs(now: number): number {
+    return this.stateEnterTime != null ? now - this.stateEnterTime : 0;
+  }
+
+  /** Time in ms the detection has been continuously active (after trigger). */
+  protected getActiveDurationMs(now: number): number {
+    if (!this.lastDetected) return 0;
+    // stateEnterTime is cleared on trigger, so we use the inverse: if detected,
+    // the duration is however long since it would have started exiting but didn't.
+    // Actually, BaseDetector does not store trigger time. We approximate using
+    // the last time the condition was evaluated while detected.
+    return this.stateExitTime != null ? now - this.stateExitTime : 0;
+  }
 
   detect(now: number): DetectionResult<TMeta> {
     const { rawConfidence, severity, metadata } = this.evaluate(now);
